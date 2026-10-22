@@ -1,5 +1,18 @@
 # ✅ Team Task Manager
 
+## Recruiter quick view
+
+**Problem:** Teams need a central place to coordinate projects, ownership, deadlines and progress.
+
+**Approach:** A Flask application using SQLAlchemy, role-based permissions, relational storage and REST APIs to support team and task workflows.
+
+**Explore:** Review the feature list, local setup instructions and API documentation below. Database configuration supports SQLite locally and PostgreSQL in supported deployments.
+
+**Engineering discussion points:** Authentication and authorization boundaries, project/member relationships, task lifecycle, database migrations, and deployment configuration.
+
+> **Verification note:** This section summarizes the documented architecture; it does not claim that the application has been independently deployed or end-to-end tested.
+
+
 <p align="center">
   <strong>A full-stack web application to organize projects, collaborate with teams, assign tasks, and track progress efficiently.</strong>
 </p>
