@@ -11,6 +11,10 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-me')
+# Enable secure cookies behind HTTPS in production by setting COOKIE_SECURE=true.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('COOKIE_SECURE', 'false').lower() == 'true'
 
 # Railway/Postgres provides DATABASE_URL. Use it when present.
 database_url = os.getenv('DATABASE_URL')
@@ -24,6 +28,14 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///team_task_manager.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+
+@app.after_request
+def add_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    return response
 
 
 db = SQLAlchemy(app)
@@ -600,4 +612,4 @@ with app.app_context():
     db.create_all()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.getenv('FLASK_DEBUG', 'false').lower() == 'true')
