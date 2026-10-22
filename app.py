@@ -167,7 +167,7 @@ def signup():
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
-        role = request.form.get('role', 'Member')
+        role = 'Member'  # Public signup cannot grant administrator privileges
         if not name or not email or len(password) < 6 or role not in VALID_ROLES:
             flash('Enter valid details. Password must be at least 6 characters.', 'error')
             return render_template('signup.html')
@@ -266,7 +266,7 @@ def api_signup():
     name = data.get('name', '').strip()
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
-    role = data.get('role', 'Member')
+    role = 'Member'  # Ignore client-supplied role during registration
     if not name or not email or len(password) < 6 or role not in VALID_ROLES:
         return jsonify({'error': 'Enter valid details. Password must be at least 6 characters.'}), 422
     if User.query.filter_by(email=email).first():
