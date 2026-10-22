@@ -80,5 +80,34 @@ class AccessControlTests(unittest.TestCase):
             self.assertEqual(db.session.get(Project, project_id).name, "Private project")
 
 
+    def test_unrelated_member_cannot_modify_or_delete_task(self):
+        from app import Task
+        with app.app_context():
+            alice = User.query.filter_by(email="alice@example.test").one()
+            project = Project.query.filter_by(name="Private project").one()
+            task = Task(title="Private task", project_id=project.id, created_by_id=alice.id)
+            db.session.add(task)
+            db.session.commit()
+            task_id = task.id
+        self.assertEqual(self.login("bob@example.test", "bob-password").status_code, 200)
+        self.assertEqual(self.client.patch(f"/api/tasks/{task_id}", json={"title": "Tampered"}).status_code, 403)
+        self.assertEqual(self.client.delete(f"/api/tasks/{task_id}").status_code, 403)
+        with app.app_context():
+            self.assertEqual(db.session.get(Task, task_id).title, "Private task")
+
+    def test_task_creator_can_delete_own_task(self):
+        from app import Task
+        with app.app_context():
+            alice = User.query.filter_by(email="alice@example.test").one()
+            project = Project.query.filter_by(name="Private project").one()
+            task = Task(title="My task", project_id=project.id, created_by_id=alice.id)
+            db.session.add(task)
+            db.session.commit()
+            task_id = task.id
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        self.assertEqual(self.client.delete(f"/api/tasks/{task_id}").status_code, 200)
+        with app.app_context():
+            self.assertIsNone(db.session.get(Task, task_id))
+
 if __name__ == "__main__":
     unittest.main()
