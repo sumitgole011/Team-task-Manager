@@ -109,5 +109,39 @@ class AccessControlTests(unittest.TestCase):
         with app.app_context():
             self.assertIsNone(db.session.get(Task, task_id))
 
+    def test_assignee_cannot_reassign_task(self):
+        from app import Task
+        with app.app_context():
+            alice = User.query.filter_by(email="alice@example.test").one()
+            bob = User.query.filter_by(email="bob@example.test").one()
+            project = Project.query.filter_by(name="Private project").one()
+            task = Task(title="Assigned task", project_id=project.id,
+                        created_by_id=alice.id, assignee_id=bob.id)
+            db.session.add(task)
+            db.session.commit()
+            task_id = task.id
+            alice_id = alice.id
+            bob_id = bob.id
+        self.assertEqual(self.login("bob@example.test", "bob-password").status_code, 200)
+        response = self.client.patch(f"/api/tasks/{task_id}", json={"assignee_id": alice_id})
+        self.assertEqual(response.status_code, 403)
+        with app.app_context():
+            self.assertEqual(db.session.get(Task, task_id).assignee_id, bob_id)
+
+    def test_creator_cannot_assign_task_to_unknown_user(self):
+        from app import Task
+        with app.app_context():
+            alice = User.query.filter_by(email="alice@example.test").one()
+            project = Project.query.filter_by(name="Private project").one()
+            task = Task(title="Valid task", project_id=project.id, created_by_id=alice.id)
+            db.session.add(task)
+            db.session.commit()
+            task_id = task.id
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        response = self.client.patch(f"/api/tasks/{task_id}", json={"assignee_id": 99999999})
+        self.assertEqual(response.status_code, 422)
+        with app.app_context():
+            self.assertIsNone(db.session.get(Task, task_id).assignee_id)
+
 if __name__ == "__main__":
     unittest.main()
