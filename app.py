@@ -448,7 +448,12 @@ def api_task_detail(task_id):
         except ValueError as e:
             return jsonify({'error': str(e)}), 422
     if 'assignee_id' in data:
-        task.assignee_id = data.get('assignee_id') or None
+        if user.role != 'Admin' and task.created_by_id != user.id:
+            return jsonify({'error': 'Only admin or creator can reassign task'}), 403
+        assignee_id = data.get('assignee_id') or None
+        if assignee_id is not None and not db.session.get(User, assignee_id):
+            return jsonify({'error': 'Invalid assignee_id'}), 422
+        task.assignee_id = assignee_id
     db.session.commit()
     return jsonify(task.to_dict())
 
