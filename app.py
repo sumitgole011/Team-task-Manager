@@ -107,7 +107,7 @@ VALID_ROLES = {'Admin', 'Member'}
 
 def current_user():
     user_id = session.get('user_id')
-    return User.query.get(user_id) if user_id else None
+    return db.session.get(User, user_id) if user_id else None
 
 @app.context_processor
 def inject_user():
@@ -315,7 +315,7 @@ def api_add_member(project_id):
     if user.role != 'Admin' and project.owner_id != user.id:
         return jsonify({'error': 'Only admin or project owner can add members'}), 403
     data = request.get_json(silent=True) or request.form
-    member = User.query.get(data.get('user_id'))
+    member = db.session.get(User, data.get('user_id'))
     if not member:
         return jsonify({'error': 'Valid user_id is required'}), 422
     if not ProjectMember.query.filter_by(project_id=project.id, user_id=member.id).first():
@@ -389,7 +389,7 @@ def api_tasks():
         return jsonify([t.to_dict() for t in tasks])
     data = request.get_json(silent=True) or request.form
     title = data.get('title', '').strip()
-    project = Project.query.get(data.get('project_id'))
+    project = db.session.get(Project, data.get('project_id'))
     if not title or not project:
         return jsonify({'error': 'title and project_id are required'}), 422
     if not can_access_project(user, project):
@@ -403,7 +403,7 @@ def api_tasks():
     except ValueError as e:
         return jsonify({'error': str(e)}), 422
     assignee_id = data.get('assignee_id') or None
-    if assignee_id and not User.query.get(assignee_id):
+    if assignee_id and not db.session.get(User, assignee_id):
         return jsonify({'error': 'Invalid assignee_id'}), 422
     task = Task(title=title, description=data.get('description', ''), status=status, priority=priority,
                 due_date=due_date, project_id=project.id, assignee_id=assignee_id, created_by_id=user.id)
@@ -473,7 +473,7 @@ def add_member_form(project_id):
         flash('Only the project owner or admin can add members.', 'error')
         return redirect(url_for('projects_page'))
     member_id = request.form.get('user_id')
-    member = User.query.get(member_id)
+    member = db.session.get(User, member_id)
     if not member:
         flash('Select a valid user to add.', 'error')
         return redirect(url_for('projects_page'))
@@ -531,7 +531,7 @@ def create_task_form():
     if not title or not project_id:
         flash('Task title and project are required.', 'error')
         return redirect(url_for('tasks_page'))
-    project = Project.query.get(project_id)
+    project = db.session.get(Project, project_id)
     user = current_user()
     if not project or not can_access_project(user, project):
         flash('Invalid project selection.', 'error')
@@ -544,7 +544,7 @@ def create_task_form():
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('tasks_page'))
-    if assignee_id and not User.query.get(assignee_id):
+    if assignee_id and not db.session.get(User, assignee_id):
         flash('Invalid assignee selected.', 'error')
         return redirect(url_for('tasks_page'))
     task = Task(title=title, description=description, status=status, priority=priority,
