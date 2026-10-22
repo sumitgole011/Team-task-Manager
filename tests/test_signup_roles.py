@@ -2,6 +2,7 @@
 
 Run: python -m unittest discover -s tests -v
 """
+import atexit
 import os
 import tempfile
 import unittest
@@ -13,6 +14,20 @@ os.environ["DATABASE_URL"] = "sqlite:///" + _db_file.name
 os.environ["SECRET_KEY"] = "test-secret-not-for-production"
 
 from app import app, db, User  # noqa: E402
+
+
+def close_test_database():
+    """Release pooled SQLite connections and remove the temporary test DB."""
+    with app.app_context():
+        db.session.remove()
+        db.engine.dispose()
+    try:
+        os.unlink(_db_file.name)
+    except FileNotFoundError:
+        pass
+
+
+atexit.register(close_test_database)
 
 
 class SignupRoleTests(unittest.TestCase):
@@ -27,6 +42,8 @@ class SignupRoleTests(unittest.TestCase):
         with app.app_context():
             db.session.remove()
             db.drop_all()
+            db.session.remove()
+            db.engine.dispose()
 
     def test_api_signup_cannot_grant_admin(self):
         response = self.client.post("/api/auth/signup", json={
