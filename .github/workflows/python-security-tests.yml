@@ -29,7 +29,7 @@ jobs:
       - name: Install SQLite test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install Flask==3.0.3 Flask-SQLAlchemy==3.1.1 Werkzeug==3.0.3 python-dotenv==1.0.1
+          python -m pip install -r requirements.txt
 
       - name: Run signup security regression tests
         run: python -W always::ResourceWarning -m unittest discover -s tests -v
