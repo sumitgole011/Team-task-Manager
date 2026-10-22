@@ -345,6 +345,8 @@ def api_project_detail(project_id):
         db.session.commit()
         return jsonify({'message': 'Project deleted'})
 
+    if user.role != 'Admin' and project.owner_id != user.id:
+        return jsonify({'error': 'Only admin or owner can update project'}), 403
     data = request.get_json(silent=True) or request.form
     if 'name' in data:
         project.name = data.get('name', project.name).strip() or project.name
