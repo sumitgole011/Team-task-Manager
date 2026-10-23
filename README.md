@@ -260,3 +260,10 @@ gunicorn app:app
 <p align="center">
   <strong>Built with Python and Flask to make project coordination and task tracking easier.</strong>
 </p>
+
+## Production security configuration
+
+Before deploying, configure a strong, unique `SECRET_KEY` using the hosting platform's secret manager. The development fallback key in `app.py` is **not safe for public deployment**. Set `COOKIE_SECURE=true` only when your app is served over HTTPS; this makes session cookies HTTPS-only. Keep `FLASK_DEBUG=false` in production and serve with a production WSGI server rather than Flask's development server.
+
+This project sets HttpOnly and SameSite=Lax session cookies and basic response security headers. **These are baseline protections, not a complete security audit.** State-changing HTML forms still need a dedicated CSRF-protection review, and production secrets, TLS, database backups, and deployment settings must be verified separately. See `.env.example` for non-secret variable names.
+
