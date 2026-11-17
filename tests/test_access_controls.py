@@ -1,7 +1,8 @@
 """Additional access-control tests using the isolated SQLite setup in test_signup_roles."""
 import unittest
 
-from app import app, db, User, Project
+from test_support import app, db, User
+from app import Project
 from werkzeug.security import generate_password_hash
 
 
@@ -145,3 +146,4 @@ class AccessControlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
