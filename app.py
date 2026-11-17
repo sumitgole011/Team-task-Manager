@@ -433,9 +433,13 @@ def api_task_detail(task_id):
         db.session.commit()
         return jsonify({'message': 'Task deleted'})
     data = request.get_json(silent=True) or request.form
-    for field in ['title', 'description']:
-        if field in data:
-            setattr(task, field, data.get(field))
+    if 'title' in data:
+        title = data.get('title')
+        if not isinstance(title, str) or not title.strip():
+            return jsonify({'error': 'Task title is required'}), 422
+        task.title = title.strip()
+    if 'description' in data:
+        task.description = data.get('description')
     if 'status' in data:
         if data.get('status') not in VALID_STATUSES:
             return jsonify({'error': 'Invalid status'}), 422

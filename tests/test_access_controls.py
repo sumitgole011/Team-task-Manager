@@ -45,6 +45,26 @@ class AccessControlTests(unittest.TestCase):
                 })
                 self.assertEqual(response.status_code, 422)
 
+    def test_task_update_rejects_invalid_title_without_changes(self):
+        from app import Task
+        self.login("alice@example.test", "alice-password")
+        with app.app_context():
+            alice = User.query.filter_by(email="alice@example.test").one()
+            project = Project.query.filter_by(name="Private project").one()
+            task = Task(title="Original", project_id=project.id, created_by_id=alice.id)
+            db.session.add(task)
+            db.session.commit()
+            task_id = task.id
+        for title in [None, "", "   ", 123, [], {}]:
+            with self.subTest(title=title):
+                response = self.client.patch(f"/api/tasks/{task_id}", json={"title": title})
+                self.assertEqual(response.status_code, 422)
+                with app.app_context():
+                    self.assertEqual(db.session.get(Task, task_id).title, "Original")
+        response = self.client.patch(f"/api/tasks/{task_id}", json={"title": "  Updated  "})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["title"], "Updated")
+
     def test_anonymous_api_access_is_denied(self):
         for path in ["/api/auth/me", "/api/users", "/api/projects", "/api/tasks"]:
             with self.subTest(path=path):
