@@ -34,6 +34,17 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_invalid_due_date_types_return_validation_error(self):
+        self.login("alice@example.test", "alice-password")
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+        for value in [123, True, [], {}]:
+            with self.subTest(value=value):
+                response = self.client.post("/api/tasks", json={
+                    "title": "Invalid date", "project_id": project_id, "due_date": value,
+                })
+                self.assertEqual(response.status_code, 422)
+
     def test_anonymous_api_access_is_denied(self):
         for path in ["/api/auth/me", "/api/users", "/api/projects", "/api/tasks"]:
             with self.subTest(path=path):

@@ -154,8 +154,10 @@ def get_accessible_projects(user):
     return Project.query.filter((Project.owner_id == user.id) | (Project.id.in_(project_ids))).order_by(Project.created_at.desc()).all()
 
 def parse_due_date(value):
-    if not value:
+    if value is None or value == '':
         return None
+    if not isinstance(value, str):
+        raise ValueError('due_date must be YYYY-MM-DD')
     try:
         return datetime.strptime(value, '%Y-%m-%d').date()
     except ValueError:
@@ -601,3 +603,4 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
