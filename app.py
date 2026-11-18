@@ -303,9 +303,10 @@ def api_projects():
             projects = Project.query.filter((Project.owner_id == user.id) | (Project.id.in_(project_ids))).all()
         return jsonify([p.to_dict() for p in projects])
     data = request.get_json(silent=True) or request.form
-    name = data.get('name', '').strip()
-    if not name:
+    name = data.get('name')
+    if not isinstance(name, str) or not name.strip():
         return jsonify({'error': 'Project name is required'}), 422
+    name = name.strip()
     project = Project(name=name, description=data.get('description', ''), owner_id=user.id)
     db.session.add(project)
     db.session.commit()
@@ -351,7 +352,10 @@ def api_project_detail(project_id):
         return jsonify({'error': 'Only admin or owner can update project'}), 403
     data = request.get_json(silent=True) or request.form
     if 'name' in data:
-        project.name = data.get('name', project.name).strip() or project.name
+        name = data.get('name')
+        if not isinstance(name, str):
+            return jsonify({'error': 'Project name must be a string'}), 422
+        project.name = name.strip() or project.name
     if 'description' in data:
         project.description = data.get('description', project.description)
     db.session.commit()

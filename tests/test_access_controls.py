@@ -106,6 +106,22 @@ class AccessControlTests(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/projects/{project_id}").status_code, 200)
 
 
+    def test_project_api_rejects_non_string_names(self):
+        self.login("alice@example.test", "alice-password")
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+
+        for name in [None, 123, True, [], {}]:
+            with self.subTest(name=name):
+                create = self.client.post("/api/projects", json={"name": name})
+                update = self.client.patch(f"/api/projects/{project_id}", json={"name": name})
+                self.assertEqual(create.status_code, 422)
+                self.assertEqual(update.status_code, 422)
+
+        with app.app_context():
+            self.assertEqual(Project.query.count(), 1)
+            self.assertEqual(db.session.get(Project, project_id).name, "Private project")
+
     def test_owner_can_update_project(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         with app.app_context():
