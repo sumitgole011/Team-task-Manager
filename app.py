@@ -396,7 +396,10 @@ def api_tasks():
         tasks = Task.query.all() if user.role == 'Admin' else Task.query.filter((Task.assignee_id == user.id) | (Task.created_by_id == user.id)).all()
         return jsonify([t.to_dict() for t in tasks])
     data = request.get_json(silent=True) or request.form
-    title = data.get('title', '').strip()
+    title = data.get('title', '')
+    if not isinstance(title, str) or not title.strip():
+        return jsonify({'error': 'Task title is required'}), 422
+    title = title.strip()
     project = db.session.get(Project, data.get('project_id'))
     if not title or not project:
         return jsonify({'error': 'title and project_id are required'}), 422

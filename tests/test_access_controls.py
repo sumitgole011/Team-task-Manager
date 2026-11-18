@@ -45,6 +45,25 @@ class AccessControlTests(unittest.TestCase):
                 })
                 self.assertEqual(response.status_code, 422)
 
+    def test_task_creation_rejects_invalid_title_without_creating_task(self):
+        from app import Task
+        self.login("alice@example.test", "alice-password")
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+        for title in [None, "", "   ", 123, True, [], {}]:
+            with self.subTest(title=title):
+                response = self.client.post("/api/tasks", json={
+                    "title": title, "project_id": project_id,
+                })
+                self.assertEqual(response.status_code, 422)
+                with app.app_context():
+                    self.assertEqual(Task.query.count(), 0)
+        response = self.client.post("/api/tasks", json={
+            "title": "  Valid task  ", "project_id": project_id,
+        })
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.get_json()["title"], "Valid task")
+
     def test_task_update_rejects_invalid_title_without_changes(self):
         from app import Task
         self.login("alice@example.test", "alice-password")
