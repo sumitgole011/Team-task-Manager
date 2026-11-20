@@ -34,6 +34,33 @@ class SignupRoleTests(unittest.TestCase):
         with app.app_context():
             self.assertEqual(User.query.filter_by(email="example@example.test").one().role, "Member")
 
+    def test_auth_api_rejects_non_object_json(self):
+        for endpoint in ('login', 'signup'):
+            for body in ('[]', '[1]', 'null', '{'):
+                with self.subTest(endpoint=endpoint, body=body):
+                    response = self.client.post(
+                        f'/api/auth/{endpoint}', data=body, content_type='application/json'
+                    )
+                    self.assertEqual(response.status_code, 400)
+
+    def test_signup_rejects_non_string_credentials(self):
+        for field in ('name', 'email', 'password'):
+            data = {'name': 'Example', 'email': 'example@example.test', 'password': 'secret'}
+            data[field] = None
+            with self.subTest(field=field):
+                response = self.client.post('/api/auth/signup', json=data)
+                self.assertEqual(response.status_code, 422)
+
+    def test_login_rejects_non_string_credentials(self):
+        data = {'name': 'Example', 'email': 'example@example.test', 'password': 'secret'}
+        self.assertEqual(self.client.post('/api/auth/signup', data=data).status_code, 201)
+        self.client.post('/api/auth/logout')
+        for payload in ({'email': None}, {'email': data['email'], 'password': []}):
+            with self.subTest(payload=payload):
+                response = self.client.post('/api/auth/login', json=payload)
+                self.assertEqual(response.status_code, 401)
+        self.assertEqual(self.client.post('/api/auth/login', data=data).status_code, 200)
+
     def test_form_signup_cannot_grant_admin(self):
         response = self.client.post("/signup", data={
             "name": "Form User",

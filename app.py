@@ -252,9 +252,14 @@ def api_me():
 
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
-    data = request.get_json(silent=True) or request.form
-    email = data.get('email', '').strip().lower()
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'Expected a JSON object'}), 400
+    email = data.get('email', '')
     password = data.get('password', '')
+    if not isinstance(email, str) or not isinstance(password, str):
+        return jsonify({'error': 'Invalid email or password'}), 401
+    email = email.strip().lower()
     user = User.query.filter_by(email=email).first()
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password'}), 401
@@ -268,13 +273,19 @@ def api_logout():
 
 @app.route('/api/auth/signup', methods=['POST'])
 def api_signup():
-    data = request.get_json(silent=True) or request.form
-    name = data.get('name', '').strip()
-    email = data.get('email', '').strip().lower()
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'Expected a JSON object'}), 400
+    name = data.get('name', '')
+    email = data.get('email', '')
     password = data.get('password', '')
-    role = 'Member'  # Ignore client-supplied role during registration
-    if not name or not email or len(password) < 6 or role not in VALID_ROLES:
+    if (not isinstance(name, str) or not name.strip()
+            or not isinstance(email, str) or not email.strip()
+            or not isinstance(password, str) or len(password) < 6):
         return jsonify({'error': 'Enter valid details. Password must be at least 6 characters.'}), 422
+    name = name.strip()
+    email = email.strip().lower()
+    role = 'Member'  # Ignore client-supplied role during registration
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Email already exists.'}), 422
     user = User(name=name, email=email, password_hash=generate_password_hash(password), role=role)
