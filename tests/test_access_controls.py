@@ -2,7 +2,8 @@
 import unittest
 
 from test_support import app, db, User
-from app import Project
+from app import Project, ProjectMember
+from sqlalchemy import event
 from werkzeug.security import generate_password_hash
 
 
@@ -33,6 +34,26 @@ class AccessControlTests(unittest.TestCase):
 
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
+
+    def test_project_creation_rolls_back_if_owner_membership_fails(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+
+        def reject_membership(*args):
+            raise RuntimeError("Owner membership insert failed")
+
+        event.listen(ProjectMember, "before_insert", reject_membership)
+        try:
+            for path, payload in (
+                ("/api/projects", {"json": {"name": "API project"}}),
+                ("/projects/create", {"data": {"name": "Form project"}}),
+            ):
+                with self.subTest(path=path):
+                    with self.assertRaisesRegex(RuntimeError, "Owner membership insert failed"):
+                        self.client.post(path, **payload)
+                    with app.app_context():
+                        self.assertEqual(Project.query.count(), 1)
+        finally:
+            event.remove(ProjectMember, "before_insert", reject_membership)
 
     def test_invalid_due_date_types_return_validation_error(self):
         self.login("alice@example.test", "alice-password")

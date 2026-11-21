@@ -319,9 +319,8 @@ def api_projects():
         return jsonify({'error': 'Project name is required'}), 422
     name = name.strip()
     project = Project(name=name, description=data.get('description', ''), owner_id=user.id)
+    project.members.append(ProjectMember(user_id=user.id))
     db.session.add(project)
-    db.session.commit()
-    db.session.add(ProjectMember(project_id=project.id, user_id=user.id))
     db.session.commit()
     return jsonify(project.to_dict()), 201
 
@@ -492,9 +491,8 @@ def create_project_form():
         return redirect(url_for('projects_page'))
     user = current_user()
     project = Project(name=name, description=description, owner_id=user.id)
+    project.members.append(ProjectMember(user_id=user.id))
     db.session.add(project)
-    db.session.commit()
-    db.session.add(ProjectMember(project_id=project.id, user_id=user.id))
     db.session.commit()
     flash('Project created successfully.', 'success')
     return redirect(url_for('projects_page'))
