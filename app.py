@@ -313,7 +313,9 @@ def api_projects():
             project_ids = [m.project_id for m in ProjectMember.query.filter_by(user_id=user.id).all()]
             projects = Project.query.filter((Project.owner_id == user.id) | (Project.id.in_(project_ids))).all()
         return jsonify([p.to_dict() for p in projects])
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     name = data.get('name')
     if not isinstance(name, str) or not name.strip():
         return jsonify({'error': 'Project name is required'}), 422
@@ -331,7 +333,9 @@ def api_add_member(project_id):
     project = Project.query.get_or_404(project_id)
     if user.role != 'Admin' and project.owner_id != user.id:
         return jsonify({'error': 'Only admin or project owner can add members'}), 403
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     member = db.session.get(User, data.get('user_id'))
     if not member:
         return jsonify({'error': 'Valid user_id is required'}), 422
@@ -360,7 +364,9 @@ def api_project_detail(project_id):
 
     if user.role != 'Admin' and project.owner_id != user.id:
         return jsonify({'error': 'Only admin or owner can update project'}), 403
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     if 'name' in data:
         name = data.get('name')
         if not isinstance(name, str):
@@ -382,7 +388,9 @@ def api_project_members(project_id):
     if request.method == 'GET':
         return jsonify([m.user.to_dict() for m in project.members])
 
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     member_id = data.get('user_id')
     if not member_id:
         return jsonify({'error': 'user_id is required to remove a member'}), 422
@@ -409,7 +417,9 @@ def api_tasks():
     if request.method == 'GET':
         tasks = Task.query.all() if user.role == 'Admin' else Task.query.filter((Task.assignee_id == user.id) | (Task.created_by_id == user.id)).all()
         return jsonify([t.to_dict() for t in tasks])
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     title = data.get('title', '')
     if not isinstance(title, str) or not title.strip():
         return jsonify({'error': 'Task title is required'}), 422
@@ -449,7 +459,9 @@ def api_task_detail(task_id):
         db.session.delete(task)
         db.session.commit()
         return jsonify({'message': 'Task deleted'})
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) if request.is_json else request.form
+    if request.is_json and not isinstance(data, dict):
+        return jsonify({'error': 'A JSON object is required'}), 400
     if 'title' in data:
         title = data.get('title')
         if not isinstance(title, str) or not title.strip():

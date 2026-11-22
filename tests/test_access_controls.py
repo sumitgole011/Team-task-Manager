@@ -35,6 +35,27 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_mutating_api_requires_json_objects(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+        task = self.client.post("/api/tasks", json={"title": "Task", "project_id": project_id})
+        self.assertEqual(task.status_code, 201)
+        for method, path in (
+            ("POST", "/api/projects"),
+            ("PATCH", f"/api/projects/{project_id}"),
+            ("POST", f"/api/projects/{project_id}/members"),
+            ("DELETE", f"/api/projects/{project_id}/members"),
+            ("POST", "/api/tasks"),
+            ("PATCH", f"/api/tasks/{task.json['id']}"),
+        ):
+            for body in ("[]", "[1]", "null", '"name"', "{"):
+                with self.subTest(method=method, path=path, body=body):
+                    result = self.client.open(path, method=method, data=body,
+                                              content_type="application/json")
+                    self.assertEqual(result.status_code, 400)
+                    self.assertEqual(result.json["error"], "A JSON object is required")
+
     def test_project_creation_rolls_back_if_owner_membership_fails(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
 
