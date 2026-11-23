@@ -35,6 +35,27 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_task_status_and_priority_reject_structured_values(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+        payload = {"title": "Task", "project_id": project_id}
+        task = self.client.post("/api/tasks", json=payload)
+        self.assertEqual(task.status_code, 201)
+        path = f"/api/tasks/{task.json['id']}"
+        for field in ("status", "priority"):
+            for value in ([], {}, None, True):
+                with self.subTest(field=field, value=value):
+                    self.assertEqual(self.client.post("/api/tasks", json={
+                        **payload, field: value,
+                    }).status_code, 422)
+                    self.assertEqual(self.client.patch(path, json={
+                        "title": "Should not persist", field: value,
+                    }).status_code, 422)
+        tasks = self.client.get("/api/tasks").json
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["title"], "Task")
+
     def test_mutating_api_requires_json_objects(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         with app.app_context():

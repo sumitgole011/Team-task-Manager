@@ -431,7 +431,8 @@ def api_tasks():
         return jsonify({'error': 'No access to this project'}), 403
     status = data.get('status', 'Todo')
     priority = data.get('priority', 'Medium')
-    if status not in VALID_STATUSES or priority not in VALID_PRIORITIES:
+    if (not isinstance(status, str) or status not in VALID_STATUSES
+            or not isinstance(priority, str) or priority not in VALID_PRIORITIES):
         return jsonify({'error': 'Invalid status or priority'}), 422
     try:
         due_date = parse_due_date(data.get('due_date'))
@@ -470,11 +471,11 @@ def api_task_detail(task_id):
     if 'description' in data:
         task.description = data.get('description')
     if 'status' in data:
-        if data.get('status') not in VALID_STATUSES:
+        if not isinstance(data['status'], str) or data['status'] not in VALID_STATUSES:
             return jsonify({'error': 'Invalid status'}), 422
         task.status = data.get('status')
     if 'priority' in data:
-        if data.get('priority') not in VALID_PRIORITIES:
+        if not isinstance(data['priority'], str) or data['priority'] not in VALID_PRIORITIES:
             return jsonify({'error': 'Invalid priority'}), 422
         task.priority = data.get('priority')
     if 'due_date' in data:
