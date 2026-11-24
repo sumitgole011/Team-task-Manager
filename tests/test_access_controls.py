@@ -35,6 +35,26 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_project_and_task_description_types_are_validated(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        project = self.client.post("/api/projects", json={"name": "New project"})
+        self.assertEqual(project.status_code, 201)
+        project_id = project.json["id"]
+        task = self.client.post("/api/tasks", json={"title": "A task", "project_id": project_id})
+        self.assertEqual(task.status_code, 201)
+        for collection, item_id, fields in (
+            ("/api/projects", project_id, {"name": "Another project"}),
+            ("/api/tasks", task.json["id"], {"title": "Another task", "project_id": project_id}),
+        ):
+            path = f"{collection}/{item_id}"
+            for description in ([], {}, 10, True):
+                with self.subTest(collection=collection, description=description):
+                    created = self.client.post(collection, json={**fields, "description": description})
+                    updated = self.client.patch(path, json={"description": description})
+                    self.assertEqual(created.status_code, 422)
+                    self.assertEqual(updated.status_code, 422)
+            self.assertEqual(self.client.patch(path, json={"description": None}).status_code, 200)
+
     def test_task_status_and_priority_reject_structured_values(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         with app.app_context():

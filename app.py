@@ -320,7 +320,10 @@ def api_projects():
     if not isinstance(name, str) or not name.strip():
         return jsonify({'error': 'Project name is required'}), 422
     name = name.strip()
-    project = Project(name=name, description=data.get('description', ''), owner_id=user.id)
+    description = data.get('description', '')
+    if description is not None and not isinstance(description, str):
+        return jsonify({'error': 'Description must be a string or null'}), 422
+    project = Project(name=name, description=description, owner_id=user.id)
     project.members.append(ProjectMember(user_id=user.id))
     db.session.add(project)
     db.session.commit()
@@ -373,7 +376,10 @@ def api_project_detail(project_id):
             return jsonify({'error': 'Project name must be a string'}), 422
         project.name = name.strip() or project.name
     if 'description' in data:
-        project.description = data.get('description', project.description)
+        description = data['description']
+        if description is not None and not isinstance(description, str):
+            return jsonify({'error': 'Description must be a string or null'}), 422
+        project.description = description
     db.session.commit()
     return jsonify(project.to_dict())
 
@@ -441,7 +447,10 @@ def api_tasks():
     assignee_id = data.get('assignee_id') or None
     if assignee_id and not db.session.get(User, assignee_id):
         return jsonify({'error': 'Invalid assignee_id'}), 422
-    task = Task(title=title, description=data.get('description', ''), status=status, priority=priority,
+    description = data.get('description', '')
+    if description is not None and not isinstance(description, str):
+        return jsonify({'error': 'Description must be a string or null'}), 422
+    task = Task(title=title, description=description, status=status, priority=priority,
                 due_date=due_date, project_id=project.id, assignee_id=assignee_id, created_by_id=user.id)
     db.session.add(task)
     db.session.commit()
@@ -469,7 +478,10 @@ def api_task_detail(task_id):
             return jsonify({'error': 'Task title is required'}), 422
         task.title = title.strip()
     if 'description' in data:
-        task.description = data.get('description')
+        description = data['description']
+        if description is not None and not isinstance(description, str):
+            return jsonify({'error': 'Description must be a string or null'}), 422
+        task.description = description
     if 'status' in data:
         if not isinstance(data['status'], str) or data['status'] not in VALID_STATUSES:
             return jsonify({'error': 'Invalid status'}), 422
