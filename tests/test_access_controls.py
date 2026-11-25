@@ -35,6 +35,31 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_project_task_and_membership_ids_require_valid_integers(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        with app.app_context():
+            project_id = Project.query.filter_by(name="Private project").one().id
+            member_id = User.query.filter_by(email="bob@example.test").one().id
+        members = f"/api/projects/{project_id}/members"
+        self.assertEqual(self.client.post(members, json={"user_id": str(member_id)}).status_code, 200)
+        task_payload = {"title": "Task", "project_id": str(project_id)}
+        task = self.client.post("/api/tasks", json={**task_payload, "assignee_id": str(member_id)})
+        self.assertEqual(task.status_code, 201)
+        path = f"/api/tasks/{task.json['id']}"
+        for value in ([], [1], {}, True, 1.0, -1, 2**63, "bad"):
+            with self.subTest(value=value):
+                for method, route, body in (
+                    ("POST", members, {"user_id": value}),
+                    ("DELETE", members, {"user_id": value}),
+                    ("POST", "/api/tasks", {**task_payload, "project_id": value}),
+                    ("POST", "/api/tasks", {**task_payload, "assignee_id": value}),
+                    ("PATCH", path, {"assignee_id": value}),
+                ):
+                    self.assertEqual(self.client.open(route, method=method, json=body).status_code, 422)
+        cleared = self.client.patch(path, json={"assignee_id": None})
+        self.assertEqual(cleared.status_code, 200)
+        self.assertIsNone(cleared.json["assignee"])
+
     def test_project_and_task_description_types_are_validated(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         project = self.client.post("/api/projects", json={"name": "New project"})

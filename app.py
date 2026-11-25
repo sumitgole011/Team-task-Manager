@@ -153,6 +153,17 @@ def get_accessible_projects(user):
     project_ids = [m.project_id for m in ProjectMember.query.filter_by(user_id=user.id).all()]
     return Project.query.filter((Project.owner_id == user.id) | (Project.id.in_(project_ids))).order_by(Project.created_at.desc()).all()
 
+def parse_record_id(value):
+    if isinstance(value, str):
+        value = value.strip()
+        if not value.isascii() or not value.isdecimal() or len(value) > 10:
+            return None
+        value = int(value)
+    if type(value) is int and 0 < value <= 2_147_483_647:
+        return value
+    return None
+
+
 def parse_due_date(value):
     if value is None or value == '':
         return None
@@ -339,7 +350,8 @@ def api_add_member(project_id):
     data = request.get_json(silent=True) if request.is_json else request.form
     if request.is_json and not isinstance(data, dict):
         return jsonify({'error': 'A JSON object is required'}), 400
-    member = db.session.get(User, data.get('user_id'))
+    member_id = parse_record_id(data.get('user_id'))
+    member = db.session.get(User, member_id) if member_id is not None else None
     if not member:
         return jsonify({'error': 'Valid user_id is required'}), 422
     if not ProjectMember.query.filter_by(project_id=project.id, user_id=member.id).first():
@@ -397,8 +409,8 @@ def api_project_members(project_id):
     data = request.get_json(silent=True) if request.is_json else request.form
     if request.is_json and not isinstance(data, dict):
         return jsonify({'error': 'A JSON object is required'}), 400
-    member_id = data.get('user_id')
-    if not member_id:
+    member_id = parse_record_id(data.get('user_id'))
+    if member_id is None:
         return jsonify({'error': 'user_id is required to remove a member'}), 422
     membership = ProjectMember.query.filter_by(project_id=project.id, user_id=member_id).first()
     if not membership:
@@ -430,8 +442,9 @@ def api_tasks():
     if not isinstance(title, str) or not title.strip():
         return jsonify({'error': 'Task title is required'}), 422
     title = title.strip()
-    project = db.session.get(Project, data.get('project_id'))
-    if not title or not project:
+    project_id = parse_record_id(data.get('project_id'))
+    project = db.session.get(Project, project_id) if project_id is not None else None
+    if not project:
         return jsonify({'error': 'title and project_id are required'}), 422
     if not can_access_project(user, project):
         return jsonify({'error': 'No access to this project'}), 403
@@ -444,9 +457,12 @@ def api_tasks():
         due_date = parse_due_date(data.get('due_date'))
     except ValueError as e:
         return jsonify({'error': str(e)}), 422
-    assignee_id = data.get('assignee_id') or None
-    if assignee_id and not db.session.get(User, assignee_id):
-        return jsonify({'error': 'Invalid assignee_id'}), 422
+    raw_assignee_id = data.get('assignee_id')
+    assignee_id = None
+    if raw_assignee_id is not None and raw_assignee_id != '':
+        assignee_id = parse_record_id(raw_assignee_id)
+        if assignee_id is None or not db.session.get(User, assignee_id):
+            return jsonify({'error': 'Invalid assignee_id'}), 422
     description = data.get('description', '')
     if description is not None and not isinstance(description, str):
         return jsonify({'error': 'Description must be a string or null'}), 422
@@ -498,9 +514,12 @@ def api_task_detail(task_id):
     if 'assignee_id' in data:
         if user.role != 'Admin' and task.created_by_id != user.id:
             return jsonify({'error': 'Only admin or creator can reassign task'}), 403
-        assignee_id = data.get('assignee_id') or None
-        if assignee_id is not None and not db.session.get(User, assignee_id):
-            return jsonify({'error': 'Invalid assignee_id'}), 422
+        raw_assignee_id = data.get('assignee_id')
+        assignee_id = None
+        if raw_assignee_id is not None and raw_assignee_id != '':
+            assignee_id = parse_record_id(raw_assignee_id)
+            if assignee_id is None or not db.session.get(User, assignee_id):
+                return jsonify({'error': 'Invalid assignee_id'}), 422
         task.assignee_id = assignee_id
     db.session.commit()
     return jsonify(task.to_dict())
