@@ -35,6 +35,17 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_owner_membership_cannot_be_removed_via_api(self):
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        project = self.client.post("/api/projects", json={"name": "Owned project"})
+        self.assertEqual(project.status_code, 201)
+        owner_id = project.json["owner_id"]
+        path = f"/api/projects/{project.json['id']}/members"
+        response = self.client.delete(path, json={"user_id": owner_id})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json["error"], "Cannot remove the project owner")
+        self.assertEqual([member["id"] for member in self.client.get(path).json], [owner_id])
+
     def test_project_task_and_membership_ids_require_valid_integers(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         with app.app_context():

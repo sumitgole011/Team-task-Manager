@@ -412,6 +412,8 @@ def api_project_members(project_id):
     member_id = parse_record_id(data.get('user_id'))
     if member_id is None:
         return jsonify({'error': 'user_id is required to remove a member'}), 422
+    if member_id == project.owner_id:
+        return jsonify({'error': 'Cannot remove the project owner'}), 422
     membership = ProjectMember.query.filter_by(project_id=project.id, user_id=member_id).first()
     if not membership:
         return jsonify({'error': 'Membership not found'}), 404
