@@ -551,8 +551,8 @@ def add_member_form(project_id):
     if user.role != 'Admin' and project.owner_id != user.id:
         flash('Only the project owner or admin can add members.', 'error')
         return redirect(url_for('projects_page'))
-    member_id = request.form.get('user_id')
-    member = db.session.get(User, member_id)
+    member_id = parse_record_id(request.form.get('user_id'))
+    member = db.session.get(User, member_id) if member_id is not None else None
     if not member:
         flash('Select a valid user to add.', 'error')
         return redirect(url_for('projects_page'))
@@ -602,8 +602,9 @@ def delete_project_form(project_id):
 def create_task_form():
     title = request.form.get('title', '').strip()
     description = request.form.get('description', '').strip()
-    project_id = request.form.get('project_id')
-    assignee_id = request.form.get('assignee_id') or None
+    project_id = parse_record_id(request.form.get('project_id'))
+    raw_assignee_id = request.form.get('assignee_id', '').strip()
+    assignee_id = parse_record_id(raw_assignee_id)
     priority = request.form.get('priority', 'Medium')
     due_date_value = request.form.get('due_date')
     status = request.form.get('status', 'Todo')
@@ -623,7 +624,7 @@ def create_task_form():
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('tasks_page'))
-    if assignee_id and not db.session.get(User, assignee_id):
+    if raw_assignee_id and (assignee_id is None or not db.session.get(User, assignee_id)):
         flash('Invalid assignee selected.', 'error')
         return redirect(url_for('tasks_page'))
     task = Task(title=title, description=description, status=status, priority=priority,

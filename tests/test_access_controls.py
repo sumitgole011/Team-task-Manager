@@ -35,6 +35,31 @@ class AccessControlTests(unittest.TestCase):
     def login(self, email, password):
         return self.client.post("/api/auth/login", json={"email": email, "password": password})
 
+    def test_html_forms_validate_ids_before_saving(self):
+        from app import Task
+        self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
+        with app.app_context():
+            project = Project.query.filter_by(name="Private project").one()
+            project_id = project.id
+            bob_id = User.query.filter_by(email="bob@example.test").one().id
+        add_member = f"/projects/{project_id}/members/add"
+        for value in ("bad", "-1", str(2**63)):
+            with self.subTest(value=value):
+                self.assertEqual(self.client.post(add_member, data={"user_id": value}).status_code, 302)
+                for data in (
+                    {"title": "Bad project", "project_id": value},
+                    {"title": "Bad assignee", "project_id": project_id, "assignee_id": value},
+                ):
+                    self.assertEqual(self.client.post("/tasks/create", data=data).status_code, 302)
+        with app.app_context():
+            self.assertEqual(ProjectMember.query.count(), 0)
+            self.assertEqual(Task.query.count(), 0)
+        self.client.post(add_member, data={"user_id": bob_id})
+        self.client.post("/tasks/create", data={"title": "Task", "project_id": project_id, "assignee_id": ""})
+        with app.app_context():
+            self.assertEqual(ProjectMember.query.one().user_id, bob_id)
+            self.assertIsNone(Task.query.one().assignee_id)
+
     def test_owner_membership_cannot_be_removed_via_api(self):
         self.assertEqual(self.login("alice@example.test", "alice-password").status_code, 200)
         project = self.client.post("/api/projects", json={"name": "Owned project"})
